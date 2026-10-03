@@ -1,0 +1,6 @@
+{
+  "name": "MeuPet",
+  "description": "Camada de dados local-first e offline para cuidados veterinários, histórico, lembretes e anexos de pets com Room DB.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

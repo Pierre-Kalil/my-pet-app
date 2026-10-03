@@ -1,0 +1,7 @@
+<!-- Colored adaptive-icon foreground. The drawing stays wholly in Android's
+     66dp safe zone, preventing launcher masks from stretching or clipping it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#00756D" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeWidth="4" android:pathData="M45,49C39,49 36,53 32,58C27,64 25,70 28,76C31,82 38,84 44,81C48,79 51,76 54,73C57,76 60,79 64,81C70,84 77,82 80,76C83,70 81,64 76,58C72,53 69,49 63,49C59,49 56,50 54,52C52,50 49,49 45,49Z" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#00756D" android:strokeWidth="4" android:pathData="M45,29C39,29 36,34 37,40C38,46 41,49 46,49C51,49 53,45 52,39C51,33 49,29 45,29Z M63,29C59,29 57,33 56,39C55,45 57,49 62,49C67,49 70,46 71,40C72,34 69,29 63,29Z M31,42C26,43 24,48 26,54C28,60 32,63 37,62C42,61 43,57 41,52C39,46 36,42 31,42Z M77,42C72,42 69,46 67,52C65,57 66,61 71,62C76,63 80,60 82,54C84,48 82,43 77,42Z" />
+    <path android:fillColor="#FF7665" android:pathData="M54,76L46,68C42,64 43,58 47,57C50,56 52,58 54,61C56,58 58,56 61,57C65,58 66,64 62,68L54,76Z" />
+</vector>
