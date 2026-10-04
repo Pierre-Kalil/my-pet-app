@@ -42,20 +42,28 @@ jobs:
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest --stacktrace
 
+      - name: Locate test reports
+        if: ${{ !cancelled() }}
+        run: |
+          echo "Generated test files:"
+          find app/build/test-results app/build/reports/tests -type f 2>/dev/null | sort || true
+
       - name: Upload unit test reports
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-reports
-          path: app/build/test-results/testDebugUnitTest
-          if-no-files-found: error
+          path: |
+            app/build/test-results/testDebugUnitTest/**/*.xml
+            app/build/reports/tests/testDebugUnitTest/**
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: meu-pet-debug-apk
           path: app/build/outputs/apk/debug/*.apk
