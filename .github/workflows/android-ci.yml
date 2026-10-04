@@ -32,25 +32,24 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: |
-            platforms;android-36.1
-            build-tools;36.0.0
+          packages: 'platforms;android-36.1 build-tools;36.0.0'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
       - name: Run unit tests
+        id: unit-tests
         run: ./gradlew :app:testDebugUnitTest --stacktrace
 
       - name: Locate test reports
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.unit-tests.outcome != 'skipped' }}
         run: |
           echo "Generated test files:"
           find app/build/test-results app/build/reports/tests -type f 2>/dev/null | sort || true
 
       - name: Upload unit test reports
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.unit-tests.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v7
         with:
           name: unit-test-reports
           path: |
@@ -63,7 +62,7 @@ jobs:
         run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: meu-pet-debug-apk
           path: app/build/outputs/apk/debug/*.apk
