@@ -7,9 +7,13 @@
     <cloud-backup>
         <!-- Personal pet photos are not included in Android Auto Backup. -->
         <exclude domain="file" path="pet_photos/" />
+        <!-- Onboarding choices are local to this installation. -->
+        <exclude domain="file" path="datastore/onboarding.preferences_pb" />
     </cloud-backup>
     <device-transfer>
         <!-- Device transfer follows the same privacy boundary as cloud backup. -->
         <exclude domain="file" path="pet_photos/" />
+        <!-- Onboarding choices are local to this installation. -->
+        <exclude domain="file" path="datastore/onboarding.preferences_pb" />
     </device-transfer>
 </data-extraction-rules>

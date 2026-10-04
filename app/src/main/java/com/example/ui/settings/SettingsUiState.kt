@@ -30,4 +30,7 @@ data class SettingsUiState(
 
 sealed interface SettingsUiEvent {
     data class Message(val value: String) : SettingsUiEvent
+    data object RestoreSucceeded : SettingsUiEvent
+    data object RestoreFailed : SettingsUiEvent
+    data object RestoreCancelled : SettingsUiEvent
 }

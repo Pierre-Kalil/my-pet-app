@@ -32,6 +32,16 @@ class SelectedPetViewModelTest {
     }
 
     @Test
+    fun `reconcile replaces a selection removed by restore or deletion`() {
+        val viewModel = SelectedPetViewModel(SavedStateHandle())
+
+        viewModel.select(99L)
+        viewModel.reconcile(listOf(4L, 8L))
+
+        assertEquals(4L, viewModel.selectedPetId.value)
+    }
+
+    @Test
     fun `reminder route keeps typed ids`() {
         assertEquals(
             "reminder/edit?reminderId=12&petId=4",

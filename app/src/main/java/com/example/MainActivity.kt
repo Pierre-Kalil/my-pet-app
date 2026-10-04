@@ -21,6 +21,9 @@ import com.example.ui.home.HomeViewModel
 import com.example.ui.navigation.AppNavHost
 import com.example.ui.navigation.ReminderRequest
 import com.example.ui.navigation.SelectedPetViewModel
+import com.example.ui.onboarding.OnboardingExternalDestination
+import com.example.ui.onboarding.OnboardingExternalEntry
+import com.example.ui.onboarding.OnboardingViewModel
 import com.example.ui.reminder.ReminderViewModel
 import com.example.ui.theme.MeuPetTheme
 import kotlinx.coroutines.flow.Flow
@@ -32,9 +35,13 @@ class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels()
     private val reminderViewModel: ReminderViewModel by viewModels()
     private val selectedPetViewModel: SelectedPetViewModel by viewModels()
+    private val onboardingViewModel: OnboardingViewModel by viewModels {
+        OnboardingViewModel.factory(application)
+    }
     private val _reminderRequests = MutableSharedFlow<ReminderRequest>(extraBufferCapacity = 1)
     private val reminderRequests = _reminderRequests.asSharedFlow()
 
+    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // MeuPet intentionally uses a light-only visual palette. Explicit light
@@ -48,6 +55,13 @@ class MainActivity : ComponentActivity() {
         hideSystemNavigation()
 
         val launchReminder = extractReminderRequest(intent)
+        onboardingViewModel.setExternalEntry(launchReminder?.let { request ->
+            OnboardingExternalEntry(
+                destination = OnboardingExternalDestination.REMINDER,
+                reminderId = request.reminderId,
+                petId = request.petId
+            )
+        })
         setContent {
             MeuPetTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -55,6 +69,7 @@ class MainActivity : ComponentActivity() {
                         homeViewModel = homeViewModel,
                         reminderViewModel = reminderViewModel,
                         selectedPetViewModel = selectedPetViewModel,
+                        onboardingViewModel = onboardingViewModel,
                         initialReminderId = launchReminder?.reminderId,
                         initialReminderPetId = launchReminder?.petId,
                         reminderRequests = reminderRequests
@@ -68,8 +83,23 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         extractReminderRequest(intent)?.let { request ->
+            onboardingViewModel.setExternalEntry(
+                OnboardingExternalEntry(
+                    destination = OnboardingExternalDestination.REMINDER,
+                    reminderId = request.reminderId,
+                    petId = request.petId
+                )
+            )
             _reminderRequests.tryEmit(request)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Notification permission/channel state can change outside the app;
+        // refresh only when returning to the foreground so the offer reflects
+        // the effective platform state without prompting automatically.
+        onboardingViewModel.refreshNotificationStatus()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -103,10 +133,12 @@ internal fun extractReminderRequest(intent: Intent?): ReminderRequest? {
 }
 
 @Composable
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 fun MeuPetApp(
     homeViewModel: HomeViewModel,
     reminderViewModel: ReminderViewModel,
     selectedPetViewModel: SelectedPetViewModel,
+    onboardingViewModel: OnboardingViewModel? = null,
     initialReminderId: Long? = null,
     initialReminderPetId: Long? = null,
     reminderRequests: Flow<ReminderRequest>? = null
@@ -115,6 +147,7 @@ fun MeuPetApp(
         homeViewModel = homeViewModel,
         reminderViewModel = reminderViewModel,
         selectedPetStore = selectedPetViewModel,
+        onboardingViewModel = onboardingViewModel,
         initialReminderId = initialReminderId,
         initialReminderPetId = initialReminderPetId,
         reminderRequests = reminderRequests
@@ -123,6 +156,7 @@ fun MeuPetApp(
 
 /** Compatibility overload for callers that used the pre-navigation root composable. */
 @Composable
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 fun MeuPetApp(
     homeViewModel: HomeViewModel,
     reminderViewModel: ReminderViewModel,

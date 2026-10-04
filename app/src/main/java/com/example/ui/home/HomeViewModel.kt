@@ -1,6 +1,7 @@
 package com.example.ui.home
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.database.AppDatabase
@@ -8,6 +9,7 @@ import com.example.data.model.Pet
 import com.example.data.model.PetSpecies
 import com.example.data.model.Reminder
 import com.example.data.repository.PetRepository
+import com.example.data.util.FileStorageUtils
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -39,6 +41,7 @@ class HomeViewModel @JvmOverloads constructor(
     private val _hasNotificationPermission = MutableStateFlow(true)
     private val _isNotificationBannerDismissed = MutableStateFlow(false)
     private val _feedbackMessage = MutableStateFlow<String?>(null)
+    private val _petCreationState = MutableStateFlow(PetCreationState())
     private val _uiEvents = MutableSharedFlow<HomeUiEvent>(replay = 0, extraBufferCapacity = 1)
     val uiEvents: SharedFlow<HomeUiEvent> = _uiEvents.asSharedFlow()
 
@@ -118,6 +121,11 @@ class HomeViewModel @JvmOverloads constructor(
             hasNotificationPermission = hasPermission,
             isNotificationBannerDismissed = bannerDismissed,
             userFeedbackMessage = feedback
+        )
+    }.combine(_petCreationState) { state, petCreation ->
+        state.copy(
+            isCreatingPet = petCreation.isCreating,
+            petCreationError = petCreation.errorMessage
         )
     }.stateIn(
         scope = viewModelScope,
@@ -215,17 +223,70 @@ class HomeViewModel @JvmOverloads constructor(
     /**
      * Adiciona um novo pet rapidamente.
      */
-    fun addNewPet(name: String, species: PetSpecies, breed: String, weight: Double? = null) {
+    fun addNewPet(
+        name: String,
+        species: PetSpecies,
+        breed: String,
+        weight: Double? = null,
+        photoUri: Uri? = null
+    ) {
+        // The state update happens before launching the coroutine, so a rapid
+        // second tap cannot create a second row in Room.
+        if (_petCreationState.value.isCreating) return
+        val normalizedName = name.trim()
+        val normalizedWeight = weight?.takeIf { it.isFinite() && it > 0.0 }
+        if (normalizedName.isBlank()) {
+            _petCreationState.value = PetCreationState(errorMessage = "Informe o nome do pet.")
+            _uiEvents.tryEmit(HomeUiEvent.Failed("Informe o nome do pet."))
+            return
+        }
+        if (weight != null && normalizedWeight == null) {
+            _petCreationState.value = PetCreationState(errorMessage = "Informe um peso válido em kg.")
+            _uiEvents.tryEmit(HomeUiEvent.Failed("Informe um peso válido em kg."))
+            return
+        }
+        _petCreationState.value = PetCreationState(isCreating = true)
         viewModelScope.launch {
-            val newPet = Pet(
-                name = name.trim(),
-                species = species,
-                breed = breed.trim(),
-                currentWeightKg = weight
-            )
-            val newId = repository.insertPet(newPet)
-            _selectedPetId.value = newId
-            _feedbackMessage.value = "Pet ${newPet.name} cadastrado com sucesso!"
+            var insertedPet: Pet? = null
+            try {
+                val draft = Pet(
+                    name = normalizedName,
+                    species = species,
+                    breed = breed.trim(),
+                    currentWeightKg = normalizedWeight
+                )
+                val newId = repository.insertPet(draft)
+                val inserted = repository.getPetByIdDirect(newId)
+                    ?: error("O pet não foi confirmado no armazenamento local.")
+                insertedPet = inserted
+                // A photo is optional. Copy it only after Room has assigned the
+                // ID, then re-read the complete record before emitting success.
+                val saved = if (photoUri != null) {
+                    FileStorageUtils.preserveReadPermission(getApplication(), photoUri)
+                    repository.replacePhoto(newId, photoUri).getOrThrow()
+                    repository.getPetByIdDirect(newId) ?: inserted
+                } else {
+                    inserted
+                }
+                _selectedPetId.value = saved.id
+                _petCreationState.value = PetCreationState()
+                _feedbackMessage.value = "Pet ${saved.name} cadastrado com sucesso!"
+                _uiEvents.emit(HomeUiEvent.PetCreated(saved))
+            } catch (_: Exception) {
+                insertedPet?.let { pet ->
+                    runCatching { repository.deletePet(pet) }
+                }
+                _petCreationState.value = PetCreationState(
+                    errorMessage = "Não foi possível cadastrar o pet. Tente novamente."
+                )
+                _uiEvents.emit(HomeUiEvent.Failed("Não foi possível cadastrar o pet. Tente novamente."))
+            }
+        }
+    }
+
+    fun clearPetCreationError() {
+        if (!_petCreationState.value.isCreating) {
+            _petCreationState.value = _petCreationState.value.copy(errorMessage = null)
         }
     }
 
@@ -257,4 +318,9 @@ class HomeViewModel @JvmOverloads constructor(
         _feedbackMessage.value = message
         _uiEvents.emit(HomeUiEvent.Failed(message))
     }
+
+    private data class PetCreationState(
+        val isCreating: Boolean = false,
+        val errorMessage: String? = null
+    )
 }

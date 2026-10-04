@@ -49,6 +49,8 @@ import com.example.data.model.Attachment
 import com.example.data.util.FileStorageUtils
 import com.example.ui.components.PetEmptyState
 import com.example.ui.components.PetLoadingState
+import com.example.ui.onboarding.ContextualHint
+import com.example.ui.onboarding.ContextualHintCard
 import com.example.ui.theme.MeuPetDimensions
 
 @Composable
@@ -57,6 +59,8 @@ fun DocumentsScreen(
     selectedPetId: Long?,
     viewModel: DocumentsViewModel,
     onNavigateBack: () -> Unit,
+    contextualHint: ContextualHint? = null,
+    onDismissHint: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -118,6 +122,11 @@ fun DocumentsScreen(
             ) {
                 item {
                     Text("Arquivos do pet ativo: $selectedPetId", style = MaterialTheme.typography.labelLarge)
+                }
+                contextualHint?.let { hint ->
+                    item {
+                        ContextualHintCard(hint = hint, onDismiss = onDismissHint)
+                    }
                 }
                 item {
                     Button(

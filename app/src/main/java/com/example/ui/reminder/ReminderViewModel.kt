@@ -176,6 +176,7 @@ class ReminderViewModel @JvmOverloads constructor(
      */
     fun saveReminder() {
         val currentState = _uiState.value
+        if (currentState.isSaving) return
         if (currentState.title.trim().isEmpty()) {
             val message = "O título do lembrete não pode ficar vazio"
             _uiState.update { it.copy(titleError = message) }
@@ -227,6 +228,10 @@ class ReminderViewModel @JvmOverloads constructor(
                         status = ReminderStatus.PENDING
                     )
                     val createdId = repository.insertReminder(newReminder, scheduleAlarm = true)
+                    val saved = repository.getReminderByIdDirect(createdId)
+                    check(saved?.petId == petId) {
+                        "O lembrete não foi confirmado no armazenamento local."
+                    }
                     _uiEvents.emit(ReminderUiEvent.Saved(createdId))
                 }
 

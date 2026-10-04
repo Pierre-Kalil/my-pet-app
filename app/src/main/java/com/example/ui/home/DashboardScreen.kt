@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -112,9 +115,12 @@ import com.example.ui.theme.PetPrimaryFixedDim
 import com.example.ui.theme.PetSecondary
 import com.example.ui.theme.PetSecondaryFixed
 import com.example.ui.theme.PetSurfaceContainerLow
+import com.example.ui.onboarding.ContextualHint
+import com.example.ui.onboarding.ContextualHintCard
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import coil.compose.AsyncImage
+import android.net.Uri
 
 @Composable
 fun DashboardScreen(
@@ -123,6 +129,10 @@ fun DashboardScreen(
     onNavigateToEditReminder: (reminderId: Long) -> Unit,
     onPetSelected: (petId: Long) -> Unit = {},
     onNavigateToEditPet: (petId: Long) -> Unit = {},
+    onPetCreated: (Pet) -> Unit = {},
+    contextualHint: ContextualHint? = null,
+    onDismissHint: () -> Unit = {},
+    showNotificationBanner: Boolean = true,
     onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     onQuickAction: (petId: Long?, category: ReminderCategory) -> Unit = { petId, _ ->
@@ -163,6 +173,10 @@ fun DashboardScreen(
             when (event) {
                 is HomeUiEvent.Succeeded -> snackbarHostState.showSnackbar(event.message)
                 is HomeUiEvent.Failed -> snackbarHostState.showSnackbar(event.message)
+                is HomeUiEvent.PetCreated -> {
+                    showNewPetDialog = false
+                    onPetCreated(event.pet)
+                }
             }
             viewModel.clearFeedbackMessage()
         }
@@ -210,7 +224,10 @@ fun DashboardScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // 1. Banner de Aviso de Notificações Negadas (Não Bloqueante)
-                if (!uiState.hasNotificationPermission && !uiState.isNotificationBannerDismissed) {
+                if (showNotificationBanner &&
+                    !uiState.hasNotificationPermission &&
+                    !uiState.isNotificationBannerDismissed
+                ) {
                     item {
                         NotificationPermissionBanner(
                             onRequestPermission = {
@@ -254,6 +271,12 @@ fun DashboardScreen(
                                 onQuickAction(uiState.selectedPet?.id, category)
                             }
                         )
+                    }
+
+                    contextualHint?.let { hint ->
+                        item {
+                            ContextualHintCard(hint = hint, onDismiss = onDismissHint)
+                        }
                     }
 
                     // 5. Cabeçalho da Agenda
@@ -324,10 +347,12 @@ fun DashboardScreen(
     if (showNewPetDialog) {
         NewPetQuickDialog(
             onDismiss = { showNewPetDialog = false },
-            onConfirm = { name, species, breed, weight ->
-                viewModel.addNewPet(name, species, breed, weight)
-                showNewPetDialog = false
-            }
+            isSaving = uiState.isCreatingPet,
+            errorMessage = uiState.petCreationError,
+            onConfirm = { name, species, breed, weight, photoUri ->
+                viewModel.addNewPet(name, species, breed, weight, photoUri)
+            },
+            onFieldChanged = viewModel::clearPetCreationError
         )
     }
 }
@@ -439,6 +464,12 @@ private fun NotificationPermissionBanner(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Espécie",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(0.35f)
+                    )
                     Button(
                         onClick = onRequestPermission,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -1239,24 +1270,48 @@ private fun NoPetsState(onAddNewPet: () -> Unit) {
 @Composable
 private fun NewPetQuickDialog(
     onDismiss: () -> Unit,
-    onConfirm: (name: String, species: PetSpecies, breed: String, weight: Double?) -> Unit
+    isSaving: Boolean = false,
+    errorMessage: String? = null,
+    onConfirm: (name: String, species: PetSpecies, breed: String, weight: Double?, photoUri: Uri?) -> Unit,
+    onFieldChanged: () -> Unit = {}
 ) {
     var name by remember { mutableStateOf("") }
     var breed by remember { mutableStateOf("") }
     var weightText by remember { mutableStateOf("") }
     var selectedSpecies by remember { mutableStateOf(PetSpecies.DOG) }
+    var photoUri by remember { mutableStateOf<Uri?>(null) }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var weightError by remember { mutableStateOf<String?>(null) }
+    val photoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { selected ->
+        photoUri = selected
+    }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
         title = { Text("Novo Pet") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier
+                    .imePadding()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = {
+                        name = it
+                        nameError = null
+                        onFieldChanged()
+                    },
                     label = { Text("Nome do pet") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    isError = nameError != null,
+                    supportingText = { nameError?.let { Text(it) } },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("pet_creation_name")
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1282,37 +1337,73 @@ private fun NewPetQuickDialog(
 
                 OutlinedTextField(
                     value = breed,
-                    onValueChange = { breed = it },
+                    onValueChange = {
+                        breed = it
+                        onFieldChanged()
+                    },
                     label = { Text("Raça") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("pet_creation_breed")
                 )
 
                 OutlinedTextField(
                     value = weightText,
-                    onValueChange = { weightText = it },
+                    onValueChange = {
+                        weightText = it
+                        weightError = null
+                        onFieldChanged()
+                    },
                     label = { Text("Peso atual (kg)") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    isError = weightError != null,
+                    supportingText = { weightError?.let { Text(it) } },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("pet_creation_weight")
                 )
+
+                OutlinedButton(
+                    onClick = { photoPicker.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (photoUri == null) "Adicionar foto (opcional)" else "Foto selecionada")
+                }
+                errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    if (name.isNotBlank()) {
-                        val weight = weightText.toDoubleOrNull()
-                        onConfirm(name, selectedSpecies, breed, weight)
+                    val parsedWeight = weightText.trim().replace(',', '.').ifBlank { null }
+                        ?.toDoubleOrNull()
+                    val validation = validatePetCreationInput(name, weightText)
+                    nameError = validation.nameError
+                    weightError = validation.weightError
+                    if (validation.isValid) {
+                        onConfirm(name.trim(), selectedSpecies, breed, parsedWeight, photoUri)
                     }
                 },
-                enabled = name.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = PetPrimary)
+                enabled = !isSaving,
+                colors = ButtonDefaults.buttonColors(containerColor = PetPrimary),
+                modifier = Modifier.testTag("pet_creation_confirm")
             ) {
-                Text("Cadastrar")
+                if (isSaving) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
+                } else {
+                    Text("Cadastrar")
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isSaving) {
                 Text("Cancelar")
             }
         }

@@ -8,4 +8,6 @@
 <full-backup-content>
     <!-- Personal pet photos are intentionally limited to the explicit local backup flow. -->
     <exclude domain="file" path="pet_photos/" />
+    <!-- Onboarding is device-local and must not follow an Android backup. -->
+    <exclude domain="file" path="datastore/onboarding.preferences_pb" />
 </full-backup-content>

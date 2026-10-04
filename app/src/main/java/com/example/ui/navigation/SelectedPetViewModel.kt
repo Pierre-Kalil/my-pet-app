@@ -11,6 +11,11 @@ interface SelectedPetStore {
     val selectedPetId: StateFlow<Long?>
 
     fun select(petId: Long?)
+
+    fun reconcile(validPetIds: List<Long>) {
+        val normalized = validPetIds.filter { it > 0L }.distinct()
+        select(selectedPetId.value?.takeIf(normalized::contains) ?: normalized.firstOrNull())
+    }
 }
 
 /** Activity-scoped selection that survives process recreation through SavedStateHandle. */
@@ -27,6 +32,17 @@ class SelectedPetViewModel(
         val validPetId = petId?.takeIf { it > 0L }
         _selectedPetId.value = validPetId
         savedStateHandle[KEY_SELECTED_PET_ID] = validPetId
+    }
+
+    /**
+     * Revalida a seleção contra a emissão atual do Room. Restauração e
+     * exclusão podem invalidar o ID salvo; nesse caso escolhemos o primeiro
+     * registro real de forma determinística e nunca um fixture por nome.
+     */
+    override fun reconcile(validPetIds: List<Long>) {
+        val normalized = validPetIds.filter { it > 0L }.distinct()
+        val current = _selectedPetId.value
+        select(current?.takeIf(normalized::contains) ?: normalized.firstOrNull())
     }
 
     private companion object {

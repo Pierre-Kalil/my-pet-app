@@ -46,12 +46,16 @@ import com.example.data.model.CareCategory
 import com.example.data.model.CareHistory
 import com.example.ui.components.PetEmptyState
 import com.example.ui.components.PetLoadingState
+import com.example.ui.onboarding.ContextualHint
+import com.example.ui.onboarding.ContextualHintCard
 import com.example.ui.theme.MeuPetDimensions
 
 @Composable
 fun HistoryScreen(
     selectedPetId: Long?,
     viewModel: HistoryViewModel,
+    contextualHint: ContextualHint? = null,
+    onDismissHint: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LaunchedEffect(selectedPetId) { viewModel.selectPet(selectedPetId) }
@@ -84,6 +88,11 @@ fun HistoryScreen(
                 item {
                     Text("Histórico de cuidados", style = MaterialTheme.typography.headlineMedium)
                     Text("Pet ativo: ${selectedPetId}", style = MaterialTheme.typography.labelLarge)
+                }
+                contextualHint?.let { hint ->
+                    item {
+                        ContextualHintCard(hint = hint, onDismiss = onDismissHint)
+                    }
                 }
                 item {
                     OutlinedTextField(

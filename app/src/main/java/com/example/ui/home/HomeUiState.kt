@@ -19,6 +19,8 @@ data class HomeUiState(
     val adherencePercent: Int = 100,
     val hasNotificationPermission: Boolean = true,
     val isNotificationBannerDismissed: Boolean = false,
+    val isCreatingPet: Boolean = false,
+    val petCreationError: String? = null,
     val selectedStatusFilter: String = "ALL", // ALL, PENDING, COMPLETED
     val selectedCategoryFilter: String = "ALL", // ALL, MEDICATION, VACCINE, etc.
     val userFeedbackMessage: String? = null
@@ -37,4 +39,6 @@ internal fun activePetPhotoDescription(displayName: String, hasPhoto: Boolean): 
 sealed interface HomeUiEvent {
     data class Succeeded(val message: String) : HomeUiEvent
     data class Failed(val message: String) : HomeUiEvent
+    /** Emitted only after Room confirms the newly inserted pet. */
+    data class PetCreated(val pet: Pet) : HomeUiEvent
 }

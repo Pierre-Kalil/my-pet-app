@@ -93,6 +93,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     _uiState.update {
                         it.copy(restore = it.restore.copy(phase = RestorePhase.SUCCESS))
                     }
+                    _uiEvents.emit(SettingsUiEvent.RestoreSucceeded)
                     _uiEvents.emit(SettingsUiEvent.Message("Dados locais restaurados e lembretes reagendados."))
                 }
                 .onFailure {
@@ -105,12 +106,14 @@ class SettingsViewModel @JvmOverloads constructor(
                         )
                     }
                     _uiEvents.emit(SettingsUiEvent.Message("Não foi possível restaurar este backup."))
+                    _uiEvents.emit(SettingsUiEvent.RestoreFailed)
                 }
         }
     }
 
     fun cancelRestore() {
         _uiState.update { it.copy(restore = RestoreUiState(phase = RestorePhase.CANCELLED)) }
+        _uiEvents.tryEmit(SettingsUiEvent.RestoreCancelled)
     }
 
     fun dismissRestore() {

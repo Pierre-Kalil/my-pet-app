@@ -98,7 +98,8 @@ fun AddEditReminderScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     onPetResolved: (Long) -> Unit = {},
-    onPetSelectionChanged: (Long) -> Unit = {}
+    onPetSelectionChanged: (Long) -> Unit = {},
+    onReminderSaved: (reminderId: Long, petId: Long) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -108,7 +109,13 @@ fun AddEditReminderScreen(
     LaunchedEffect(Unit) {
         viewModel.uiEvents.collect { event ->
             when (event) {
-                is ReminderUiEvent.Saved,
+                is ReminderUiEvent.Saved -> {
+                    val petId = uiState.selectedPetId
+                    if (event.reminderId != null && petId != null) {
+                        onReminderSaved(event.reminderId, petId)
+                    }
+                    onNavigateBack()
+                }
                 ReminderUiEvent.Deleted -> onNavigateBack()
                 ReminderUiEvent.DeleteCancelled -> snackbarHostState.showSnackbar("Exclusão cancelada")
                 ReminderUiEvent.EditingCancelled -> Unit

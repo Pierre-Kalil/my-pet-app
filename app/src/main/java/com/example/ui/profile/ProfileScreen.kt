@@ -54,6 +54,8 @@ import coil.compose.AsyncImage
 import com.example.data.util.FileStorageUtils
 import com.example.ui.components.PetEmptyState
 import com.example.ui.components.PetLoadingState
+import com.example.ui.onboarding.ContextualHint
+import com.example.ui.onboarding.ContextualHintCard
 import com.example.ui.theme.MeuPetDimensions
 import com.example.ui.theme.PetPrimary
 import com.example.ui.theme.PetPrimaryFixed
@@ -65,6 +67,8 @@ fun ProfileScreen(
     onDocumentsClick: () -> Unit,
     onEditPetClick: (Long) -> Unit = {},
     onEmergencyContactsClick: () -> Unit = {},
+    contextualHint: ContextualHint? = null,
+    onDismissHint: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LaunchedEffect(selectedPetId) { viewModel.selectPet(selectedPetId) }
@@ -159,6 +163,11 @@ fun ProfileScreen(
                             ProfileValue("Nascimento", pet.birthDate?.localizedDateLabel() ?: "Não informado")
                             ProfileValue("Castrado", if (pet.isNeutered) "Sim" else "Não")
                             ProfileValue("Microchip", if (pet.isMicrochipped) pet.microchipNumber ?: "Sim" else "Não")
+                        }
+                    }
+                    contextualHint?.let { hint ->
+                        item {
+                            ContextualHintCard(hint = hint, onDismiss = onDismissHint)
                         }
                     }
                     item {

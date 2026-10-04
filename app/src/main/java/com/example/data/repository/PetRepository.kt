@@ -70,6 +70,8 @@ class PetRepository(
     // --- Pet Operations ---
 
     val allPets: Flow<List<Pet>> = petDao.getAllPets()
+    /** Todos os lembretes observados para reconciliar a jornada de onboarding. */
+    val allReminders: Flow<List<Reminder>> = reminderDao.getAllReminders()
     val activePets: Flow<List<Pet>> = petDao.getActivePets()
 
     fun getPetById(petId: Long): Flow<Pet?> = petDao.getPetById(petId)

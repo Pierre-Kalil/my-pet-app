@@ -46,6 +46,10 @@ import com.example.data.util.FileStorageUtils
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
+    onRestoreStarted: () -> Unit = {},
+    onRestoreFinished: (RestoreOutcome) -> Unit = {},
+    openRestoreOnLaunch: Boolean = false,
+    onReviewIntroduction: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -59,10 +63,26 @@ fun SettingsScreen(
         viewModel.inspectRestore(uri)
     }
 
+    LaunchedEffect(openRestoreOnLaunch) {
+        if (openRestoreOnLaunch) {
+            onRestoreStarted()
+            restoreLauncher.launch(
+                arrayOf(
+                    "application/vnd.meupet.backup+zip",
+                    "application/zip",
+                    "application/json"
+                )
+            )
+        }
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.uiEvents.collect { event ->
             when (event) {
                 is SettingsUiEvent.Message -> snackbar.showSnackbar(event.value)
+                SettingsUiEvent.RestoreSucceeded -> onRestoreFinished(RestoreOutcome.Success)
+                SettingsUiEvent.RestoreFailed -> onRestoreFinished(RestoreOutcome.Failed)
+                SettingsUiEvent.RestoreCancelled -> onRestoreFinished(RestoreOutcome.Cancelled)
             }
         }
     }
@@ -110,6 +130,14 @@ fun SettingsScreen(
                 }
             }
             item {
+                OutlinedButton(
+                    onClick = onReviewIntroduction,
+                    modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp)
+                ) {
+                    Text("Rever introdução")
+                }
+            }
+            item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.Notifications, contentDescription = null)
@@ -146,6 +174,12 @@ fun SettingsScreen(
     }
 
     RestoreDialog(state.restore, viewModel)
+}
+
+sealed interface RestoreOutcome {
+    data object Success : RestoreOutcome
+    data object Cancelled : RestoreOutcome
+    data object Failed : RestoreOutcome
 }
 
 @Composable
